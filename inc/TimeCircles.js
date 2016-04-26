@@ -79,7 +79,7 @@
     };
     var secondsIn = {
         Seconds: 1,
-        Minutes: 60,
+        Minutes: 80,
         Hours: 3600,
         Days: 86400,
         Months: 2678400,
@@ -93,19 +93,6 @@
      * @param {string} hex color code
      */
     function hexToRgb(hex) {
-
-        // Verify already RGB (e.g. "rgb(0,0,0)") or RGBA (e.g. "rgba(0,0,0,0.5)")
-        var rgba = /^rgba?\(([\d]+),([\d]+),([\d]+)(,([\d\.]+))?\)$/;
-        if(rgba.test(hex)) {
-            var result = rgba.exec(hex);
-            return {
-                r: parseInt(result[1]),
-                g: parseInt(result[2]),
-                b: parseInt(result[3]),
-                a: parseInt(result[5] ? result[5] : 1)
-            };
-        }
-
         // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
         var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
         hex = hex.replace(shorthandRegex, function(m, r, g, b) {
@@ -348,6 +335,9 @@
             }
         }
 
+        // eFlex Addition: init targetCycleTime
+        secondsIn.Minutes = this.config.targetCycleTime
+
         // Avoid stacking
         $(this.element).children('div.time_circles').remove();
 
@@ -419,12 +409,22 @@
             headerElement.css("line-height", Math.round(this.config.text_size * this.data.attributes.item_size) + "px");
             headerElement.appendTo(textElement);
 
-            var numberElement = $("<span>");
-            numberElement.css("font-size", Math.round(3 * this.config.text_size * this.data.attributes.item_size));
-            numberElement.css("line-height", Math.round(this.config.text_size * this.data.attributes.item_size) + "px");
-            numberElement.appendTo(textElement);
+            if (key === "Seconds") {
+              var minNumberElement = $("<h3>");
+              minNumberElement.css("font-size", Math.round(5 * this.config.text_size * this.data.attributes.item_size));
+              minNumberElement.css("line-height", Math.round(this.config.text_size * this.data.attributes.item_size) + "px");
+              minNumberElement.appendTo(textElement);
 
-            this.data.text_elements[key] = numberElement;
+              this.data.text_elements["Minutes"] = minNumberElement;
+            }
+
+            var secNumberElement = $("<span>");
+            secNumberElement.css("font-size", Math.round(2 * this.config.text_size * this.data.attributes.item_size));
+            secNumberElement.css("line-height", Math.round(this.config.text_size * this.data.attributes.item_size) + "px");
+            secNumberElement.css("padding-left", "70px");
+            secNumberElement.appendTo(textElement);
+
+            this.data.text_elements[key] = secNumberElement;
         }
 
         this.start();
@@ -468,6 +468,9 @@
 
                     // Set the text value
                     this.data.text_elements[key].text("0");
+                    if (key === "Seconds") {
+                      this.data.text_elements["Minutes"].text("0");
+                    }
                     var x = (i * this.data.attributes.item_size) + (this.data.attributes.item_size / 2);
                     var y = this.data.attributes.item_size / 2;
                     var color = this.config.time[key].color;
@@ -510,7 +513,11 @@
             
             if(!nodraw) {
                 // Set the text value
-                this.data.text_elements[key].text(Math.floor(Math.abs(visible_times.time[key])));
+                // eFlex
+                this.data.text_elements[key].text(Math.floor(Math.abs(visible_times.time[key] % 60)));
+                if (key === "Seconds") {
+                  this.data.text_elements["Minutes"].text(Math.floor(Math.abs(visible_times.time[key] / 60)));
+                }
 
                 var x = (j * this.data.attributes.item_size) + (this.data.attributes.item_size / 2);
                 var y = this.data.attributes.item_size / 2;
@@ -615,11 +622,20 @@
         
         if (this.config.use_background) {
             this.data.attributes.context.beginPath();
-            this.data.attributes.context.arc(x, y, this.data.attributes.radius, 0, 2 * Math.PI, false);
+            this.data.attributes.context.arc(x, y, this.data.attributes.radius, 0.5 *Math.PI, 2 * Math.PI, false);
             this.data.attributes.context.lineWidth = this.data.attributes.line_width * this.config.bg_width;
 
             // line color
             this.data.attributes.context.strokeStyle = this.config.circle_bg_color;
+            this.data.attributes.context.stroke();
+
+            // eFlex alarm limit at 75%
+            this.data.attributes.context.beginPath();
+            this.data.attributes.context.arc(x, y, this.data.attributes.radius, 0, 0.5 * Math.PI, false);
+            this.data.attributes.context.lineWidth = this.data.attributes.line_width * this.config.bg_width;
+
+            // line color
+            this.data.attributes.context.strokeStyle = "#6c7236"
             this.data.attributes.context.stroke();
         }
 
@@ -651,7 +667,12 @@
         this.data.attributes.context.lineWidth = this.data.attributes.line_width;
 
         // line color
-        this.data.attributes.context.strokeStyle = color;
+        actualAngle = endAngle - startAngle
+        if (actualAngle > (1.5 * Math.PI)) {
+          this.data.attributes.context.strokeStyle = "#e8e500";
+        } else {
+          this.data.attributes.context.strokeStyle = color;
+        }
         this.data.attributes.context.stroke();
     };
 
@@ -771,6 +792,9 @@
             useWindow = window;
         }
         updateUsedWindow();
+
+        // eFlex Addition: init targetCycleTime
+        secondsIn.Minutes = this.config.targetCycleTime;
         
         this.data.total_duration = this.config.total_duration;
         if (typeof this.data.total_duration === "string") {
@@ -794,6 +818,7 @@
                 console.error("Valid values for TimeCircles config.total_duration are either numeric, or (string) Years, Months, Days, Hours, Minutes, Auto");
             }
         }
+      console.log("Inside setOptions:", secondsIn.Minutes);
     };
 
     TC_Instance.prototype.addListener = function(f, context, type) {
